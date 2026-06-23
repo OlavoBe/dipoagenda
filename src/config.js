@@ -23,6 +23,9 @@ const config = {
   vereadorNumero: apenasDigitos(process.env.VEREADOR_NUMERO),
   vereadorNome: process.env.VEREADOR_NOME || 'Vereador',
 
+  // Numero do chip do bot (Dipo) conectado na Evolution, usado para detectar mencao no grupo
+  botNumero: apenasDigitos(process.env.BOT_NUMERO),
+
   // Token simples para proteger o webhook (opcional)
   webhookToken: process.env.WEBHOOK_TOKEN || null,
 };
@@ -36,6 +39,7 @@ function validar() {
   if (!config.evolution.instancia) faltando.push('EVOLUTION_INSTANCE');
   if (!config.grupoAssessoresJid) faltando.push('GRUPO_ASSESSORES_JID');
   if (!config.vereadorNumero) faltando.push('VEREADOR_NUMERO');
+  if (!config.botNumero) faltando.push('BOT_NUMERO');
   if (faltando.length) {
     console.warn('[config] Variaveis de ambiente faltando:', faltando.join(', '));
   }

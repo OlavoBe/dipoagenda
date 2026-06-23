@@ -4,6 +4,7 @@ const { prisma } = require('./db');
 const { enviarTexto } = require('./whatsapp');
 const { identificarComando, executarConsulta } = require('./queries');
 const { processarMensagemGrupo } = require('./handlers');
+const { detectarGatilho } = require('./gatilho');
 const { iniciarCron } = require('./cron');
 
 validar();
@@ -83,9 +84,22 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // 2) Mensagem do grupo de assessores -> classifica e registra
+    // 2) Mensagem do grupo de assessores -> so processa se foi dirigida ao bot
     if (remoteJid === config.grupoAssessoresJid) {
-      await processarMensagemGrupo(texto, {
+      const textoLimpo = detectarGatilho(texto, msg.message);
+      // Nao foi mencao nem prefixo "Dipo": ignora silenciosamente (conversa normal do grupo).
+      if (textoLimpo === null) return;
+
+      // Foi chamado mas nao disse nada util (ex.: so "Dipo:"): pede o conteudo.
+      if (!textoLimpo) {
+        await enviarTexto(
+          remoteJid,
+          'Pois não. Me diga o compromisso, demanda ou indicação que devo registrar.'
+        );
+        return;
+      }
+
+      await processarMensagemGrupo(textoLimpo, {
         numero: remetenteNumero,
         nome: msg.pushName || null,
         jid: remoteJid,
