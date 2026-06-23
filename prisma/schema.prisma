@@ -1,0 +1,75 @@
+// Schema do banco - SQLite (migrar para PostgreSQL/Neon no futuro:
+// basta trocar provider para "postgresql" e a DATABASE_URL).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Compromisso {
+  id              Int      @id @default(autoincrement())
+  titulo          String
+  data            DateTime // instante (UTC) do compromisso, ja com hora embutida quando informada
+  hora            String? // "HH:mm" para exibicao
+  local           String?
+  tipo            String? // Reuniao, Visita, Sessao, Evento, Outros
+  criadoPor       String?  @map("criado_por")
+  descricao       String?
+  lembreteEnviado Boolean  @default(false) @map("lembrete_enviado")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  @@map("compromissos")
+}
+
+model Demanda {
+  id          Int      @id @default(autoincrement())
+  cidadaoNome String   @map("cidadao_nome")
+  bairro      String?
+  logradouro  String?
+  tipo        String? // Buraco, Documento, Causa Animal, Saude, Iluminacao, Limpeza, Outros
+  descricao   String
+  status      String   @default("Recebida") // Recebida, Em Andamento, Encaminhada, Resolvida
+  criadoPor   String?  @map("criado_por")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@map("demandas")
+}
+
+model PedidoIndicacao {
+  id         Int      @id @default(autoincrement())
+  assunto    String
+  logradouro String?
+  bairro     String?
+  cep        String?
+  referencia String? // ponto de referencia / proximidade
+  descricao  String
+  status     String   @default("Pendente") // Pendente, Redigida, Protocolada
+  criadoPor  String?  @map("criado_por")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@map("pedidos_indicacao")
+}
+
+model Notificacao {
+  id                 Int      @id @default(autoincrement())
+  tipo               String // lembrete_compromisso, resumo_diario, outro
+  destinatarioNumero String   @map("destinatario_numero")
+  mensagem           String
+  enviarEm           DateTime @map("enviar_em")
+  enviada            Boolean  @default(false)
+  criadaEm           DateTime @default(now()) @map("criada_em")
+
+  @@map("notificacoes")
+}
+
+// Evita reprocessar a mesma mensagem (Evolution pode reenviar o webhook).
+model MensagemProcessada {
+  id       String   @id // id da mensagem vindo da Evolution API
+  criadaEm DateTime @default(now()) @map("criada_em")
+
+  @@map("mensagens_processadas")
+}

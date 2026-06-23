@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.db
+*.db-journal
+dev.db*
+prisma/migrations/
+.DS_Store
