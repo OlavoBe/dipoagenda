@@ -37,6 +37,9 @@ const ferramenta = {
             },
             descricao: { type: 'string' },
           },
+          // Sem isso o modelo as vezes omite o titulo e a agenda fica
+          // listando "Compromisso" generico.
+          required: ['titulo'],
         },
         demanda: {
           type: 'object',
@@ -61,6 +64,7 @@ const ferramenta = {
             referencia: { type: 'string', description: 'Ponto de referencia / proximidade.' },
             descricao: { type: 'string' },
           },
+          required: ['assunto'],
         },
         resposta: {
           type: 'string',
