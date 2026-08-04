@@ -139,9 +139,12 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // 2) Consulta do vereador (comando reconhecido)
+    // 2) Consulta (!hoje, !semana, !pendentes, !resumo).
+    // Liberada para o grupo inteiro: o assessor precisa saber a agenda do dia
+    // tanto quanto o vereador. A checagem de origem la em cima ja garante que
+    // so chega aqui quem e do grupo autorizado ou o proprio vereador.
     const comando = identificarComando(texto);
-    if (ehVereador && comando) {
+    if (comando) {
       const resposta = await executarConsulta(comando);
       if (resposta) await enviarTexto(remoteJid, resposta);
       return;
@@ -165,7 +168,7 @@ app.post('/webhook', async (req, res) => {
       // "!dipo !resumo" tambem e consulta, nao registro: checa o comando
       // depois de remover o gatilho, senao o texto iria parar na IA.
       const comandoAposGatilho = identificarComando(textoLimpo);
-      if (ehVereador && comandoAposGatilho) {
+      if (comandoAposGatilho) {
         const resposta = await executarConsulta(comandoAposGatilho);
         if (resposta) await enviarTexto(remoteJid, resposta);
         return;
