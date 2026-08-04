@@ -28,6 +28,21 @@ function extrairTexto(message) {
   );
 }
 
+// Descobre o numero real de quem enviou a mensagem.
+// O WhatsApp passou a usar LID ("166666726027455@lid") no lugar do numero em
+// grupos, por privacidade; nesse modo o numero real vem nos campos "*Alt".
+// Em conversa direta, o proprio remoteJid ja e o numero.
+function numeroDoRemetente(key) {
+  const candidatos = [
+    key?.participantAlt, // grupo em modo LID: numero real
+    key?.participant, // grupo em modo classico
+    key?.remoteJidAlt, // conversa direta em modo LID
+    key?.remoteJid, // conversa direta classica
+  ];
+  const jid = candidatos.find((c) => c && !c.includes('@lid'));
+  return apenasDigitos(jid || '');
+}
+
 // Dedup: evita reprocessar a mesma mensagem.
 async function jaProcessada(id) {
   if (!id) return false;
@@ -69,9 +84,7 @@ app.post('/webhook', async (req, res) => {
     await marcarProcessada(id);
 
     const remoteJid = msg.key?.remoteJid || '';
-    const participant = msg.key?.participant || '';
-    // Em grupo, o remetente real vem em "participant"; em conversa direta, no remoteJid.
-    const remetenteNumero = apenasDigitos(participant || remoteJid);
+    const remetenteNumero = numeroDoRemetente(msg.key);
 
     const ehVereador =
       config.vereadorNumero && remetenteNumero.endsWith(config.vereadorNumero);
@@ -96,6 +109,15 @@ app.post('/webhook', async (req, res) => {
           remoteJid,
           'Pois não. Me diga o compromisso, demanda ou indicação que devo registrar.'
         );
+        return;
+      }
+
+      // "Dipo: resumo" tambem e consulta, nao registro: checa o comando
+      // depois de remover o gatilho, senao o texto iria parar na IA.
+      const comandoAposGatilho = identificarComando(textoLimpo);
+      if (ehVereador && comandoAposGatilho) {
+        const resposta = await executarConsulta(comandoAposGatilho);
+        if (resposta) await enviarTexto(remoteJid, resposta);
         return;
       }
 
