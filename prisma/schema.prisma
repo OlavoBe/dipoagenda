@@ -1,12 +1,13 @@
-// Schema do banco - SQLite (migrar para PostgreSQL/Neon no futuro:
-// basta trocar provider para "postgresql" e a DATABASE_URL).
+// Schema do banco - PostgreSQL.
+// O filesystem do Railway e efemero, entao SQLite perderia todos os
+// compromissos a cada deploy/restart.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

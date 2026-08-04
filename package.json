@@ -4,12 +4,16 @@
   "description": "Sistema de gestao de gabinete legislativo via WhatsApp + IA - Camara Municipal de Guaruja/SP",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "prisma migrate deploy && node src/server.js",
     "dev": "node --watch src/server.js",
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev --name init",
+    "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "conectar": "node scripts/conectar.js",
+    "grupos": "node scripts/grupos.js",
+    "webhook": "node scripts/webhook.js"
   },
   "dependencies": {
     "@prisma/client": "^6.0.1",

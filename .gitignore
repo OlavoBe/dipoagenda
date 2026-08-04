@@ -3,5 +3,7 @@ node_modules/
 *.db
 *.db-journal
 dev.db*
-prisma/migrations/
 .DS_Store
+
+# QR Code de pareamento gerado por scripts/conectar.js - nunca versionar
+qrcode.png
