@@ -43,6 +43,29 @@ function numeroDoRemetente(key) {
   return apenasDigitos(jid || '');
 }
 
+// Compara dois numeros tolerando o DDI ausente de um dos lados.
+// Nao usar "endsWith" solto aqui: como o numero do vereador tem 13 digitos,
+// qualquer numero terminado nesses 13 digitos (ex.: 99 + 5513955518906) seria
+// aceito como se fosse ele. Por isso descartamos o que for maior que um
+// numero brasileiro valido e comparamos DDD + numero.
+function mesmoNumero(a, b) {
+  const da = apenasDigitos(a);
+  const db = apenasDigitos(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  // 55 + DDD (2) + numero (8 ou 9) = no maximo 13 digitos.
+  if (da.length > 13 || db.length > 13) return false;
+  return da.length >= 11 && db.length >= 11 && da.slice(-11) === db.slice(-11);
+}
+
+// Esconde o miolo do numero antes de logar, para nao deixar telefone
+// completo de terceiros espalhado no log.
+function mascarar(jid) {
+  const d = apenasDigitos(jid);
+  if (d.length < 8) return '(desconhecido)';
+  return `${d.slice(0, 4)}*****${d.slice(-4)}`;
+}
+
 // Dedup: evita reprocessar a mesma mensagem.
 async function jaProcessada(id) {
   if (!id) return false;
@@ -75,19 +98,34 @@ app.post('/webhook', async (req, res) => {
     // Ignora mensagens enviadas pela propria IA (evita loop).
     if (msg.key?.fromMe) return;
 
-    const id = msg.key?.id;
-    if (await jaProcessada(id)) return;
-
     const texto = extrairTexto(msg.message);
     if (!texto || !texto.trim()) return;
-
-    await marcarProcessada(id);
 
     const remoteJid = msg.key?.remoteJid || '';
     const remetenteNumero = numeroDoRemetente(msg.key);
 
-    const ehVereador =
-      config.vereadorNumero && remetenteNumero.endsWith(config.vereadorNumero);
+    const ehVereador = mesmoNumero(remetenteNumero, config.vereadorNumero);
+    const ehGrupoAutorizado =
+      Boolean(config.grupoAssessoresJid) && remoteJid === config.grupoAssessoresJid;
+
+    // PROTECAO CONTRA NUMEROS DESCONHECIDOS
+    // Se o numero do Dipo vazar, estranhos vao mandar mensagem. Responder
+    // automaticamente a quem nao conhecemos e o caminho mais rapido para o
+    // numero ser denunciado como spam e banido pelo WhatsApp. Entao qualquer
+    // origem que nao seja o grupo autorizado ou o vereador e descartada em
+    // SILENCIO: sem resposta, sem chamada a IA, sem gravar nada.
+    // A checagem vem antes de qualquer acesso ao banco de proposito: assim um
+    // flood de numero desconhecido custa zero query e nao enche a tabela de dedup.
+    if (!ehGrupoAutorizado && !ehVereador) {
+      console.log(
+        `[webhook] ignorado (origem nao autorizada): ${mascarar(remoteJid)}`,
+      );
+      return;
+    }
+
+    const id = msg.key?.id;
+    if (await jaProcessada(id)) return;
+    await marcarProcessada(id);
 
     // 1) Consulta do vereador (comando reconhecido)
     const comando = identificarComando(texto);
