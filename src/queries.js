@@ -10,12 +10,11 @@ const {
 // ---- Reconhecimento de comandos do vereador ----
 // Todo comando comeca com "!". Exigir o prefixo evita que uma conversa
 // normal no grupo ("e o resumo da reuniao?") dispare o bot sem querer.
-// Retorna 'hoje' | 'semana' | 'pendentes' | 'resumo' | null
+// Retorna 'hoje' | 'semana' | 'resumo' | null
 function identificarComando(texto) {
   const t = (texto || '').trim().toLowerCase();
   if (/^!(agenda\s+)?hoje$/.test(t)) return 'hoje';
   if (/^!(agenda\s+)?semana$/.test(t)) return 'semana';
-  if (/^!(pendentes|demandas)$/.test(t)) return 'pendentes';
   if (/^!resumo$/.test(t)) return 'resumo';
   return null;
 }
@@ -31,16 +30,15 @@ function textoAjuda() {
   return [
     '*Dipo — Auxiliar Legislativo*',
     '',
-    '*Registrar* (agenda, demanda ou indicação):',
-    '`!dipo` + o que aconteceu. Atalho: `!d`',
+    '*Registrar compromisso:*',
+    '`!dipo` + o compromisso. Atalho: `!d`',
     'Ex.: !dipo reunião com a associação sexta às 15h',
-    'Ex.: !d buraco na rua XV, cidadã Maria Souza',
+    'Se faltar algum dado eu pergunto, e aí é só responder normal.',
     '',
     '*Consultar:*',
     '`!hoje` — compromissos de hoje',
     '`!semana` — próximos 7 dias',
-    '`!pendentes` — demandas em aberto',
-    '`!resumo` — agenda de hoje + pendentes',
+    '`!resumo` — hoje + os próximos 7 dias',
     '',
     '`!ajuda` — mostra esta lista',
     '',
@@ -102,30 +100,11 @@ async function textoAgendaSemana() {
   return `*Agenda dos proximos 7 dias*\n\n${blocos.join('\n\n')}`;
 }
 
-async function textoDemandasPendentes() {
-  const demandas = await prisma.demanda.findMany({
-    where: { status: { not: 'Resolvida' } },
-    orderBy: { criadoEm: 'desc' },
-  });
-
-  if (demandas.length === 0) {
-    return '*Demandas pendentes*\nNenhuma demanda em aberto.';
-  }
-
-  const linhas = demandas.map((d) => {
-    const bairro = d.bairro ? ` (${d.bairro})` : '';
-    const tipo = d.tipo ? `${d.tipo} - ` : '';
-    return `- ${tipo}${d.cidadaoNome}${bairro} [${d.status}]`;
-  });
-  return `*Demandas pendentes* (${demandas.length})\n${linhas.join('\n')}`;
-}
-
+// Panorama: o dia de hoje e o que vem pela frente. Enquanto demanda e
+// indicacao estao desligadas, e isso que faz sentido num "resumo".
 async function textoResumo() {
-  const [agenda, demandas] = await Promise.all([
-    textoAgendaHoje(),
-    textoDemandasPendentes(),
-  ]);
-  return `${agenda}\n\n${demandas}`;
+  const [hoje, semana] = await Promise.all([textoAgendaHoje(), textoAgendaSemana()]);
+  return `${hoje}\n\n${semana}`;
 }
 
 async function executarConsulta(comando) {
@@ -134,8 +113,6 @@ async function executarConsulta(comando) {
       return textoAgendaHoje();
     case 'semana':
       return textoAgendaSemana();
-    case 'pendentes':
-      return textoDemandasPendentes();
     case 'resumo':
       return textoResumo();
     default:
@@ -149,6 +126,5 @@ module.exports = {
   textoAjuda,
   executarConsulta,
   textoAgendaHoje,
-  textoDemandasPendentes,
   textoResumo,
 };

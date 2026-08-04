@@ -10,6 +10,7 @@ const {
 } = require('./queries');
 const { processarMensagemGrupo } = require('./handlers');
 const { detectarGatilho } = require('./gatilho');
+const { pegarPendente, limparPendente } = require('./conversa');
 const { iniciarCron } = require('./cron');
 
 validar();
@@ -152,15 +153,33 @@ app.post('/webhook', async (req, res) => {
 
     // 3) Mensagem do grupo de assessores -> so processa se foi dirigida ao bot
     if (remoteJid === config.grupoAssessoresJid) {
+      const remetente = {
+        numero: remetenteNumero,
+        nome: msg.pushName || null,
+        jid: remoteJid,
+      };
+
       const textoLimpo = detectarGatilho(texto, msg.message);
-      // Nao foi mencao nem gatilho "!dipo": ignora silenciosamente (conversa normal do grupo).
-      if (textoLimpo === null) return;
+
+      if (textoLimpo === null) {
+        // Sem gatilho. Pode ainda ser a resposta a uma pergunta que o Dipo
+        // acabou de fazer a essa pessoa - nesse caso ele mesmo puxou a
+        // conversa, entao exigir "!dipo" de novo seria burocracia.
+        const pendente = pegarPendente(remoteJid, remetenteNumero);
+        if (!pendente) return; // conversa normal do grupo: ignora em silencio
+
+        limparPendente(remoteJid, remetenteNumero);
+        // Reenvia o pedido original junto com a resposta, senao a IA recebe
+        // so "quinta as 16h" e nao sabe do que se trata.
+        await processarMensagemGrupo(`${pendente.textoOriginal}\n${texto}`, remetente);
+        return;
+      }
 
       // Foi chamado mas nao disse nada util (ex.: so "!dipo"): pede o conteudo.
       if (!textoLimpo) {
         await enviarTexto(
           remoteJid,
-          'Pois não. Escreva o compromisso, demanda ou indicação depois do !dipo. Use !ajuda para ver os comandos.'
+          'Pois não. Escreva o compromisso depois do !dipo. Use !ajuda para ver os comandos.'
         );
         return;
       }
@@ -174,11 +193,7 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
-      await processarMensagemGrupo(textoLimpo, {
-        numero: remetenteNumero,
-        nome: msg.pushName || null,
-        jid: remoteJid,
-      });
+      await processarMensagemGrupo(textoLimpo, remetente);
       return;
     }
 
