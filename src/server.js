@@ -2,7 +2,12 @@ const express = require('express');
 const { config, apenasDigitos, validar } = require('./config');
 const { prisma } = require('./db');
 const { enviarTexto } = require('./whatsapp');
-const { identificarComando, executarConsulta } = require('./queries');
+const {
+  identificarComando,
+  ehPedidoDeAjuda,
+  textoAjuda,
+  executarConsulta,
+} = require('./queries');
 const { processarMensagemGrupo } = require('./handlers');
 const { detectarGatilho } = require('./gatilho');
 const { iniciarCron } = require('./cron');
@@ -127,7 +132,14 @@ app.post('/webhook', async (req, res) => {
     if (await jaProcessada(id)) return;
     await marcarProcessada(id);
 
-    // 1) Consulta do vereador (comando reconhecido)
+    // 1) Ajuda: liberada para qualquer pessoa do grupo autorizado, porque
+    // quem mais precisa da lista de comandos e o assessor, nao o vereador.
+    if (ehPedidoDeAjuda(texto)) {
+      await enviarTexto(remoteJid, textoAjuda());
+      return;
+    }
+
+    // 2) Consulta do vereador (comando reconhecido)
     const comando = identificarComando(texto);
     if (ehVereador && comando) {
       const resposta = await executarConsulta(comando);
@@ -135,22 +147,22 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // 2) Mensagem do grupo de assessores -> so processa se foi dirigida ao bot
+    // 3) Mensagem do grupo de assessores -> so processa se foi dirigida ao bot
     if (remoteJid === config.grupoAssessoresJid) {
       const textoLimpo = detectarGatilho(texto, msg.message);
-      // Nao foi mencao nem prefixo "Dipo": ignora silenciosamente (conversa normal do grupo).
+      // Nao foi mencao nem gatilho "!dipo": ignora silenciosamente (conversa normal do grupo).
       if (textoLimpo === null) return;
 
-      // Foi chamado mas nao disse nada util (ex.: so "Dipo:"): pede o conteudo.
+      // Foi chamado mas nao disse nada util (ex.: so "!dipo"): pede o conteudo.
       if (!textoLimpo) {
         await enviarTexto(
           remoteJid,
-          'Pois não. Me diga o compromisso, demanda ou indicação que devo registrar.'
+          'Pois não. Escreva o compromisso, demanda ou indicação depois do !dipo. Use !ajuda para ver os comandos.'
         );
         return;
       }
 
-      // "Dipo: resumo" tambem e consulta, nao registro: checa o comando
+      // "!dipo !resumo" tambem e consulta, nao registro: checa o comando
       // depois de remover o gatilho, senao o texto iria parar na IA.
       const comandoAposGatilho = identificarComando(textoLimpo);
       if (ehVereador && comandoAposGatilho) {

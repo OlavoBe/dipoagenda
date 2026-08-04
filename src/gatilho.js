@@ -1,7 +1,9 @@
 const { config, apenasDigitos } = require('./config');
 
-// Prefixo "Dipo:"/"Dipo,"/"Dipo " no inicio do texto (tolerante a acentos e case).
-const REGEX_PREFIXO = /^\s*dipo\b[\s:,-]*/i;
+// Gatilho de registro: "!dipo" ou o atalho "!d" no inicio da mensagem.
+// Aceita qualquer caixa (!DIPO, !Dipo, !D) e o separador que vier depois
+// (":", ",", "-" ou espaco).
+const REGEX_PREFIXO = /^\s*!(dipo|d)\b[\s:,-]*/i;
 
 // Verifica se algum JID mencionado na mensagem corresponde ao numero do bot.
 function temMencaoAoBot(message) {
@@ -10,12 +12,12 @@ function temMencaoAoBot(message) {
   return mentionedJid.some((jid) => apenasDigitos(jid).endsWith(config.botNumero));
 }
 
-// Verifica se o texto comeca com o prefixo "Dipo".
+// Verifica se o texto comeca com o gatilho "!dipo" / "!d".
 function temPrefixoDipo(texto) {
   return REGEX_PREFIXO.test(texto || '');
 }
 
-// Detecta se a mensagem foi dirigida ao bot (mencao real ou prefixo "Dipo")
+// Detecta se a mensagem foi dirigida ao bot (mencao real ou gatilho "!dipo")
 // e retorna o texto ja limpo do gatilho, pronto para ir pra IA.
 // Retorna null quando a mensagem nao foi dirigida ao bot (deve ser ignorada).
 function detectarGatilho(texto, message) {
@@ -26,7 +28,7 @@ function detectarGatilho(texto, message) {
 
   let limpo = texto || '';
 
-  // Remove o prefixo "Dipo:"/"Dipo,"/"Dipo " do inicio, se houver.
+  // Remove o gatilho "!dipo"/"!d" do inicio, se houver.
   limpo = limpo.replace(REGEX_PREFIXO, '');
 
   // Remove mencoes "@numero" que se referem ao bot (a Evolution manda o texto
