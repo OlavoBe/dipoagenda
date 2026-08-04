@@ -36,7 +36,7 @@ function textoAjuda() {
     'Ex.: !dipo reunião com a associação sexta às 15h',
     'Ex.: !d buraco na rua XV, cidadã Maria Souza',
     '',
-    '*Consultar* (somente o vereador):',
+    '*Consultar:*',
     '`!hoje` — compromissos de hoje',
     '`!semana` — próximos 7 dias',
     '`!pendentes` — demandas em aberto',
