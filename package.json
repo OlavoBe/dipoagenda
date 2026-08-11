@@ -4,7 +4,7 @@
   "description": "Sistema de gestao de gabinete legislativo via WhatsApp + IA - Camara Municipal de Guaruja/SP",
   "main": "src/server.js",
   "scripts": {
-    "start": "node scripts/migrar.js && node src/server.js",
+    "start": "node scripts/migrar.js && node scripts/limpar.js && node src/server.js",
     "dev": "node --watch src/server.js",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
