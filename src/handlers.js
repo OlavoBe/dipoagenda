@@ -1,7 +1,7 @@
 const { prisma } = require('./db');
 const { classificar } = require('./ai');
 const { enviarTexto } = require('./whatsapp');
-const { montarDataHora } = require('./datas');
+const { montarDataHora, formatarData } = require('./datas');
 const { criarLembreteCompromisso } = require('./notificacoes');
 const { registrarPergunta } = require('./conversa');
 
@@ -14,6 +14,38 @@ const RECADO_DESATIVADO = {
   INDICACAO: '[INDICAÇÃO] Ainda não registro pedidos de indicação. Por enquanto eu cuido só da agenda.',
 };
 
+// Uma linha da confirmacao, montada a partir do registro que foi realmente
+// gravado - e nao do texto que a IA sugeriu. Isso evita o pior tipo de erro
+// aqui: confirmar no grupo um compromisso que nao entrou no banco.
+function linhaCompromisso(c) {
+  const partes = [formatarData(c.data)];
+  if (c.hora) partes.push(c.hora);
+  if (c.local) partes.push(c.local);
+  return `• ${c.titulo} — ${partes.join(', ')}`;
+}
+
+function montarConfirmacao(salvos, semData) {
+  const blocos = [];
+
+  if (salvos.length === 1) {
+    blocos.push(`[AGENDA] ${linhaCompromisso(salvos[0]).replace(/^• /, '')}`);
+  } else if (salvos.length > 1) {
+    blocos.push(`[AGENDA] ${salvos.length} compromissos registrados:`);
+    blocos.push(salvos.map(linhaCompromisso).join('\n'));
+  }
+
+  if (semData.length) {
+    const nomes = semData.map((c) => c.titulo || 'compromisso sem título').join(', ');
+    blocos.push(
+      salvos.length
+        ? `Faltou a data de: ${nomes}. Me diga que eu registro.`
+        : `[AGENDA] Preciso da data de: ${nomes}.`,
+    );
+  }
+
+  return blocos.join('\n\n');
+}
+
 // Processa uma mensagem vinda do grupo de assessores:
 // classifica via IA, persiste o que for concreto e confirma no grupo.
 async function processarMensagemGrupo(texto, remetente) {
@@ -25,7 +57,7 @@ async function processarMensagemGrupo(texto, remetente) {
     return;
   }
 
-  const { tipo, precisa_confirmar: precisaConfirmar, resposta } = resultado;
+  const { tipo, resposta } = resultado;
 
   if (tipo === 'IGNORAR') return;
 
@@ -35,23 +67,32 @@ async function processarMensagemGrupo(texto, remetente) {
     return;
   }
 
-  // Ambiguo ou sem dado suficiente: pergunta e nao grava. Guarda a pendencia
-  // para a resposta poder vir solta, sem repetir o "!dipo".
-  if (precisaConfirmar) {
-    registrarPergunta(remetente.jid, remetente.numero, texto);
-    if (resposta) await enviarTexto(remetente.jid, resposta);
+  if (tipo !== 'AGENDA') return;
+
+  const itens = Array.isArray(resultado.compromissos) ? resultado.compromissos : [];
+  if (!itens.length) {
+    // Sem nada aproveitavel: se a IA fez uma pergunta, repassa e guarda a
+    // pendencia para a resposta poder vir solta, sem repetir o "!dipo".
+    if (resposta) {
+      registrarPergunta(remetente.jid, remetente.numero, texto);
+      await enviarTexto(remetente.jid, resposta);
+    }
     return;
   }
 
+  // Um compromisso sem data nao impede os outros de entrarem: registra o que
+  // da para registrar e cobra so o que faltou.
+  const salvos = [];
+  const semData = [];
+
   try {
-    if (tipo === 'AGENDA' && resultado.compromisso) {
-      const c = resultado.compromisso;
+    for (const c of itens) {
       const data = montarDataHora(c.data, c.hora);
       if (!data) {
-        await enviarTexto(remetente.jid, '[AGENDA] Preciso da data do compromisso para registrar.');
-        return;
+        semData.push(c);
+        continue;
       }
-      const compromisso = await prisma.compromisso.create({
+      const salvo = await prisma.compromisso.create({
         data: {
           titulo: c.titulo || 'Compromisso',
           data,
@@ -62,19 +103,26 @@ async function processarMensagemGrupo(texto, remetente) {
           criadoPor: remetente.nome || remetente.numero || null,
         },
       });
-      await criarLembreteCompromisso(compromisso);
-    } else {
-      // tipo declarado mas sem objeto correspondente: nao grava
-      return;
+      await criarLembreteCompromisso(salvo);
+      salvos.push(salvo);
     }
   } catch (err) {
     console.error('[handlers] erro ao salvar:', err.message);
-    await enviarTexto(remetente.jid, 'Houve um erro ao registrar. Tente novamente.');
+    await enviarTexto(
+      remetente.jid,
+      salvos.length
+        ? `Registrei ${salvos.length} compromisso(s), mas houve um erro no restante. Confira com !semana.`
+        : 'Houve um erro ao registrar. Tente novamente.',
+    );
     return;
   }
 
-  // Confirmacao no grupo
-  if (resposta) await enviarTexto(remetente.jid, resposta);
+  // Ficou faltando data: deixa a conversa aberta para a resposta vir solta.
+  if (semData.length) {
+    registrarPergunta(remetente.jid, remetente.numero, texto);
+  }
+
+  await enviarTexto(remetente.jid, montarConfirmacao(salvos, semData));
 }
 
 module.exports = { processarMensagemGrupo };

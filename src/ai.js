@@ -24,22 +24,36 @@ const ferramenta = {
           description:
             'true quando a mensagem e ambigua ou faltam dados essenciais (ex.: data de um compromisso, nome do cidadao).',
         },
-        compromisso: {
-          type: 'object',
-          properties: {
-            titulo: { type: 'string' },
-            data: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
-            hora: { type: 'string', description: 'Horario no formato HH:mm, se houver.' },
-            local: { type: 'string' },
-            tipo: {
-              type: 'string',
-              enum: ['Reuniao', 'Visita', 'Sessao', 'Evento', 'Outros'],
+        // Lista, nao objeto: no gabinete a agenda costuma chegar em bloco,
+        // com varios eventos na mesma mensagem. Com um objeto so, todos os
+        // compromissos alem do primeiro eram descartados em silencio.
+        compromissos: {
+          type: 'array',
+          description:
+            'Um item por compromisso. Se a mensagem trouxer varios eventos, devolva TODOS, ' +
+            'inclusive quando estiverem em meses diferentes ou em formato de lista.',
+          items: {
+            type: 'object',
+            properties: {
+              titulo: { type: 'string' },
+              data: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
+              hora: {
+                type: 'string',
+                description:
+                  'Horario de inicio no formato HH:mm. Se houver faixa ("9h as 16h"), use o inicio ' +
+                  'e registre a faixa completa em "descricao".',
+              },
+              local: { type: 'string' },
+              tipo: {
+                type: 'string',
+                enum: ['Reuniao', 'Visita', 'Sessao', 'Evento', 'Outros'],
+              },
+              descricao: { type: 'string' },
             },
-            descricao: { type: 'string' },
+            // Sem isso o modelo as vezes omite o titulo e a agenda fica
+            // listando "Compromisso" generico.
+            required: ['titulo'],
           },
-          // Sem isso o modelo as vezes omite o titulo e a agenda fica
-          // listando "Compromisso" generico.
-          required: ['titulo'],
         },
         demanda: {
           type: 'object',
@@ -93,9 +107,14 @@ Categorias:
 Regras:
 - So registre (AGENDA/DEMANDA/INDICACAO) se houver dado CONCRETO: uma data, um nome de cidadao,
   ou um local/assunto especifico. Sem isso, use IGNORAR.
+- Uma mensagem pode conter VARIOS compromissos: a agenda do gabinete costuma chegar em bloco,
+  com emojis, separadores e titulos de mes. Devolva um item em "compromissos" para CADA evento,
+  sem parar no primeiro. Titulos de mes ("AGOSTO / 2026") servem para montar a data dos itens
+  daquela secao, e nao sao compromissos.
 - Marque precisa_confirmar = true quando a intencao for clara mas faltar um dado essencial
   (ex.: compromisso sem data, demanda sem nome do cidadao). Nesse caso, a "resposta" deve pedir
-  esse dado de forma curta.
+  esse dado de forma curta. Se so ALGUNS compromissos estiverem incompletos, devolva todos
+  assim mesmo: os completos serao registrados e a falta e cobrada apenas dos outros.
 - Para INDICACAO, capture o local com a maior precisao possivel: logradouro completo, bairro,
   CEP e ponto de referencia, separados nos campos certos. Nao misture vias diferentes.
 - "resposta" sempre comeca com a tag entre colchetes e e curta. Para IGNORAR, use "[IGNORAR]".
