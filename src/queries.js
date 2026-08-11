@@ -4,7 +4,6 @@ const {
   fimDoDiaSP,
   daquiADias,
   formatarData,
-  formatarHora,
 } = require('./datas');
 
 // ---- Reconhecimento de comandos do vereador ----
@@ -60,12 +59,15 @@ async function textoAgendaHoje() {
     return '*Agenda de hoje*\nNenhum compromisso para hoje.';
   }
 
-  const linhas = compromissos.map((c) => {
-    const hora = c.hora || formatarHora(c.data);
-    const local = c.local ? ` - ${c.local}` : '';
-    return `- ${hora} ${c.titulo}${local}`;
-  });
-  return `*Agenda de hoje*\n${linhas.join('\n')}`;
+  return `*Agenda de hoje*\n${compromissos.map(linhaAgenda).join('\n')}`;
+}
+
+// Uma linha da agenda. Quando o compromisso veio sem horario, dizemos isso
+// em vez de exibir a hora derivada da data: como a data e gravada a meia-noite
+// nesse caso, sairia um "00:00" que parece horario de verdade e nao e.
+function linhaAgenda(c) {
+  const local = c.local ? ` - ${c.local}` : '';
+  return c.hora ? `- ${c.hora} ${c.titulo}${local}` : `- ${c.titulo} (horário a definir)${local}`;
 }
 
 // Monta a listagem agrupada por dia. Usada pelas consultas que cobrem mais
@@ -80,12 +82,7 @@ function agruparPorDia(compromissos) {
 
   const blocos = [];
   for (const [dia, itens] of porDia) {
-    const linhas = itens.map((c) => {
-      const hora = c.hora || formatarHora(c.data);
-      const local = c.local ? ` - ${c.local}` : '';
-      return `- ${hora} ${c.titulo}${local}`;
-    });
-    blocos.push(`*${dia}*\n${linhas.join('\n')}`);
+    blocos.push(`*${dia}*\n${itens.map(linhaAgenda).join('\n')}`);
   }
   return blocos.join('\n\n');
 }

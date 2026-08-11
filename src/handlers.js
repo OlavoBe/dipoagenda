@@ -19,7 +19,7 @@ const RECADO_DESATIVADO = {
 // aqui: confirmar no grupo um compromisso que nao entrou no banco.
 function linhaCompromisso(c) {
   const partes = [formatarData(c.data)];
-  if (c.hora) partes.push(c.hora);
+  partes.push(c.hora || 'horário a definir');
   if (c.local) partes.push(c.local);
   return `• ${c.titulo} — ${partes.join(', ')}`;
 }
