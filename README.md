@@ -81,6 +81,48 @@ npm run dev               # http://localhost:3000
 Para a Evolution alcançar o webhook em desenvolvimento, exponha a porta
 (ex.: `ngrok http 3000`) e rode `npm run webhook -- https://SEU_HOST/webhook`.
 
+## Trabalhar de outra máquina
+
+```bash
+git clone https://github.com/OlavoBe/dipoagenda.git
+cd dipoagenda
+npm install
+cp .env.example .env
+```
+
+O `.env` não vai para o Git. Pegue os valores no Railway: serviço `dipoagenda`
+→ **Variables** → **Raw Editor** → *Copy ENV*.
+
+Uma variável precisa de atenção. No Railway, `DATABASE_URL` é uma referência
+interna (`${{Postgres-yNrp.DATABASE_URL}}`) e o banco **não tem endereço
+público** — de fora do Railway você não alcança o banco de produção. Copiar
+essa linha como está não funciona.
+
+O que dá para fazer localmente:
+
+| Tarefa | Basta ter |
+| --- | --- |
+| `npm run conectar` / `grupos` / `webhook` | as variáveis `EVOLUTION_*` |
+| Testar a extração da IA | `OPENAI_API_KEY` |
+| Subir o app inteiro (`npm run dev`) | um PostgreSQL local em `DATABASE_URL` |
+
+Na prática, o dia a dia de manutenção não precisa do banco: edita, faz push,
+e valida testando no grupo.
+
+### Publicar uma alteração
+
+O deploy é automático — todo push na `main` dispara build e deploy.
+
+```bash
+git pull
+# edite os arquivos
+git commit -am "descrição da mudança"
+git push
+```
+
+Para saber que o container novo subiu, acompanhe `/status`: o `uptimeSegundos`
+volta para perto de zero quando a versão nova entra.
+
 ## Operação
 
 ```bash
