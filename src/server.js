@@ -16,6 +16,22 @@ const { iniciarCron } = require('./cron');
 
 validar();
 
+// No Node 18+ uma promise rejeitada sem tratamento derruba o processo. Num bot
+// que fica esperando webhook isso vira reinicio silencioso: a Railway avisa
+// "crash" por e-mail e nao sobra rastro do motivo. Aqui a gente registra o erro
+// e segue de pe - uma falha ao responder uma mensagem nao justifica derrubar o
+// servico inteiro.
+process.on('unhandledRejection', (motivo) => {
+  console.error('[processo] promise rejeitada sem tratamento:', motivo);
+});
+
+// Excecao nao capturada deixa o processo em estado duvidoso: registra e sai,
+// para a Railway subir um container limpo em vez de seguir meio quebrado.
+process.on('uncaughtException', (err) => {
+  console.error('[processo] excecao nao capturada:', err);
+  process.exit(1);
+});
+
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 

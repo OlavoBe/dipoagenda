@@ -73,11 +73,17 @@ async function verificarConexao() {
 }
 
 // Estado para o endpoint /status, consumido por monitor externo.
+// "processoDesde"/"uptimeSegundos" servem para diagnosticar reinicios: se o
+// uptime volta para perto de zero de tempo em tempo, o container esta caindo
+// e reiniciando - que e diferente do WhatsApp desconectar com o app de pe.
 function estadoAtual() {
+  const uptimeSegundos = Math.round(process.uptime());
   return {
     whatsapp: ultimoEstado,
     noAr: ultimoEstado === null ? null : estaNoAr(ultimoEstado),
     quedaDesde: quedaDesde ? new Date(quedaDesde).toISOString() : null,
+    uptimeSegundos,
+    processoDesde: new Date(Date.now() - uptimeSegundos * 1000).toISOString(),
   };
 }
 
