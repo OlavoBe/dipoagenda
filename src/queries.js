@@ -37,8 +37,8 @@ function textoAjuda() {
     '',
     '*Consultar:*',
     '`!hoje` — compromissos de hoje',
-    '`!semana` — próximos 7 dias',
-    '`!resumo` — hoje + os próximos 7 dias',
+    '`!semana` — hoje e os próximos 7 dias',
+    '`!resumo` — a agenda inteira que vem pela frente',
     '',
     '`!ajuda` — mostra esta lista',
     '',
@@ -68,19 +68,9 @@ async function textoAgendaHoje() {
   return `*Agenda de hoje*\n${linhas.join('\n')}`;
 }
 
-async function textoAgendaSemana() {
-  const inicio = inicioDoDiaSP();
-  const fim = daquiADias(7, fimDoDiaSP());
-  const compromissos = await prisma.compromisso.findMany({
-    where: { data: { gte: inicio, lt: fim } },
-    orderBy: { data: 'asc' },
-  });
-
-  if (compromissos.length === 0) {
-    return '*Agenda dos proximos 7 dias*\nNenhum compromisso no periodo.';
-  }
-
-  // Agrupa por dia
+// Monta a listagem agrupada por dia. Usada pelas consultas que cobrem mais
+// de um dia, para as duas sairem no mesmo formato.
+function agruparPorDia(compromissos) {
   const porDia = new Map();
   for (const c of compromissos) {
     const chave = formatarData(c.data);
@@ -97,14 +87,38 @@ async function textoAgendaSemana() {
     });
     blocos.push(`*${dia}*\n${linhas.join('\n')}`);
   }
-  return `*Agenda dos proximos 7 dias*\n\n${blocos.join('\n\n')}`;
+  return blocos.join('\n\n');
 }
 
-// Panorama: o dia de hoje e o que vem pela frente. Enquanto demanda e
-// indicacao estao desligadas, e isso que faz sentido num "resumo".
+// Hoje mais os proximos 7 dias. O periodo comeca a 00:00 de hoje, entao os
+// compromissos de hoje entram aqui tambem.
+async function textoAgendaSemana() {
+  const inicio = inicioDoDiaSP();
+  const fim = daquiADias(7, fimDoDiaSP());
+  const compromissos = await prisma.compromisso.findMany({
+    where: { data: { gte: inicio, lt: fim } },
+    orderBy: { data: 'asc' },
+  });
+
+  if (compromissos.length === 0) {
+    return '*Agenda: hoje e proximos 7 dias*\nNenhum compromisso no periodo.';
+  }
+  return `*Agenda: hoje e proximos 7 dias*\n\n${agruparPorDia(compromissos)}`;
+}
+
+// Tudo o que vem pela frente, sem limite de data. Sem isso um compromisso
+// marcado para daqui a tres meses ficava invisivel: era salvo, disparava o
+// lembrete na hora certa, mas nao aparecia em nenhuma consulta.
 async function textoResumo() {
-  const [hoje, semana] = await Promise.all([textoAgendaHoje(), textoAgendaSemana()]);
-  return `${hoje}\n\n${semana}`;
+  const compromissos = await prisma.compromisso.findMany({
+    where: { data: { gte: inicioDoDiaSP() } },
+    orderBy: { data: 'asc' },
+  });
+
+  if (compromissos.length === 0) {
+    return '*Agenda completa*\nNenhum compromisso agendado.';
+  }
+  return `*Agenda completa* (${compromissos.length})\n\n${agruparPorDia(compromissos)}`;
 }
 
 async function executarConsulta(comando) {

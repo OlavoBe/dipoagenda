@@ -2,7 +2,10 @@ const cron = require('node-cron');
 const { config } = require('./config');
 const { enviarTexto } = require('./whatsapp');
 const { despacharPendentes } = require('./notificacoes');
-const { textoResumo } = require('./queries');
+// O bom-dia usa a agenda da semana, nao o !resumo: desde que "resumo" virou
+// a agenda inteira que vem pela frente, mandar aquilo toda manha seria uma
+// parede de texto com compromissos de meses adiante.
+const { textoAgendaSemana } = require('./queries');
 const { verificarConexao } = require('./monitor');
 
 function iniciarCron() {
@@ -30,8 +33,8 @@ function iniciarCron() {
     async () => {
       if (!config.vereadorNumero) return;
       try {
-        const resumo = await textoResumo();
-        await enviarTexto(config.vereadorNumero, `*Bom dia! Resumo do dia*\n\n${resumo}`);
+        const agenda = await textoAgendaSemana();
+        await enviarTexto(config.vereadorNumero, `*Bom dia!*\n\n${agenda}`);
       } catch (err) {
         console.error('[cron] erro no resumo diario:', err.message);
       }
