@@ -3,8 +3,18 @@ const { config } = require('./config');
 const { enviarTexto } = require('./whatsapp');
 const { despacharPendentes } = require('./notificacoes');
 const { textoResumo } = require('./queries');
+const { verificarConexao } = require('./monitor');
 
 function iniciarCron() {
+  // A cada 2 minutos: vigia a conexao do WhatsApp.
+  cron.schedule('*/2 * * * *', async () => {
+    try {
+      await verificarConexao();
+    } catch (err) {
+      console.error('[cron] erro ao verificar conexao:', err.message);
+    }
+  });
+
   // A cada minuto: envia notificacoes/lembretes vencidos.
   cron.schedule('* * * * *', async () => {
     try {
@@ -29,7 +39,9 @@ function iniciarCron() {
     { timezone: 'America/Sao_Paulo' },
   );
 
-  console.log('[cron] agendamentos ativos (lembretes a cada minuto, resumo as 07:00).');
+  console.log(
+    '[cron] agendamentos ativos (lembretes a cada minuto, resumo as 07:00, conexao a cada 2 min).',
+  );
 }
 
 module.exports = { iniciarCron };

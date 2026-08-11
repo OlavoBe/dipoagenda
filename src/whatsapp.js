@@ -31,4 +31,22 @@ async function enviarTexto(destino, texto) {
   }
 }
 
-module.exports = { enviarTexto };
+// Consulta o estado da instancia na Evolution.
+// Devolve 'open' (pareada), 'close'/'connecting' (fora do ar) ou null quando
+// nem deu para perguntar - a diferenca importa: null e "nao sei", nao e "caiu".
+async function estadoConexao() {
+  if (!config.evolution.url || !config.evolution.instancia) return null;
+
+  const url = `${config.evolution.url}/instance/connectionState/${config.evolution.instancia}`;
+  try {
+    const resp = await fetch(url, { headers: { apikey: config.evolution.apiKey } });
+    if (!resp.ok) return null;
+    const corpo = await resp.json();
+    return corpo?.instance?.state || null;
+  } catch (err) {
+    console.error('[whatsapp] erro ao consultar estado:', err.message);
+    return null;
+  }
+}
+
+module.exports = { enviarTexto, estadoConexao };

@@ -11,6 +11,7 @@ const {
 const { processarMensagemGrupo } = require('./handlers');
 const { detectarGatilho } = require('./gatilho');
 const { pegarPendente, limparPendente } = require('./conversa');
+const { estadoAtual } = require('./monitor');
 const { iniciarCron } = require('./cron');
 
 validar();
@@ -18,9 +19,20 @@ validar();
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// Healthcheck (Render usa isso para saber que o servico esta de pe).
+// Healthcheck do servico. Responde 200 enquanto o processo estiver de pe,
+// mesmo com o WhatsApp caido - se devolvesse erro aqui, a Railway acharia
+// que o container esta doente e ficaria reiniciando a toa.
 app.get('/', (_req, res) => res.send('Sistema de Gabinete - online'));
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Estado do WhatsApp, para monitor externo (UptimeRobot e afins).
+// Devolve 503 quando a sessao cai, que e o que faz o monitor disparar o
+// alerta por e-mail/push - o unico caminho que funciona quando justamente
+// o WhatsApp esta fora do ar.
+app.get('/status', (_req, res) => {
+  const estado = estadoAtual();
+  res.status(estado.noAr === false ? 503 : 200).json(estado);
+});
 
 // Extrai o texto de uma mensagem do WhatsApp (varios formatos da Evolution).
 function extrairTexto(message) {
