@@ -26,6 +26,15 @@ const config = {
   // Numero do chip do bot (Dipo) conectado na Evolution, usado para detectar mencao no grupo
   botNumero: apenasDigitos(process.env.BOT_NUMERO),
 
+  // Numeros que acompanham o sistema. Tem os mesmos direitos do vereador no
+  // privado (consultar) e recebem as mesmas notificacoes automaticas, para
+  // conferir o que esta chegando nele e testar o que sobe. Lista separada por
+  // virgula; vazio desliga o recurso.
+  adminNumeros: (process.env.ADMIN_NUMEROS || '')
+    .split(',')
+    .map((n) => apenasDigitos(n))
+    .filter(Boolean),
+
   // Token simples para proteger o webhook (opcional)
   webhookToken: process.env.WEBHOOK_TOKEN || null,
 };

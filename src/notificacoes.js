@@ -19,8 +19,13 @@ async function criarLembreteCompromisso(compromisso) {
   const local = compromisso.local ? ` em ${compromisso.local}` : '';
   const mensagem = `*Lembrete*\nDaqui a 1h: ${compromisso.titulo} (${compromisso.hora})${local}.`;
 
-  // Set evita mandar duas vezes caso o grupo e o vereador sejam o mesmo destino.
-  const destinos = [...new Set([config.grupoAssessoresJid, config.vereadorNumero].filter(Boolean))];
+  // Set evita mandar duas vezes quando o mesmo destino aparece em mais de uma
+  // configuracao (ex.: quem acompanha o sistema tambem esta no grupo).
+  const destinos = [
+    ...new Set(
+      [config.grupoAssessoresJid, config.vereadorNumero, ...config.adminNumeros].filter(Boolean),
+    ),
+  ];
   if (!destinos.length) return;
 
   for (const destino of destinos) {

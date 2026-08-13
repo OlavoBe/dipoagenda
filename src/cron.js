@@ -31,10 +31,14 @@ function iniciarCron() {
   cron.schedule(
     '0 7 * * *',
     async () => {
-      if (!config.vereadorNumero) return;
+      // Vai para o vereador e para quem acompanha o sistema.
+      const destinos = [...new Set([config.vereadorNumero, ...config.adminNumeros].filter(Boolean))];
+      if (!destinos.length) return;
       try {
         const agenda = await textoAgendaSemana();
-        await enviarTexto(config.vereadorNumero, `*Bom dia!*\n\n${agenda}`);
+        for (const destino of destinos) {
+          await enviarTexto(destino, `*Bom dia!*\n\n${agenda}`);
+        }
       } catch (err) {
         console.error('[cron] erro no resumo diario:', err.message);
       }

@@ -139,6 +139,8 @@ app.post('/webhook', async (req, res) => {
     const remetenteNumero = numeroDoRemetente(msg.key);
 
     const ehVereador = mesmoNumero(remetenteNumero, config.vereadorNumero);
+    // Quem acompanha o sistema consulta no privado igual ao vereador.
+    const ehAcompanhante = config.adminNumeros.some((n) => mesmoNumero(remetenteNumero, n));
     const ehGrupoAutorizado =
       Boolean(config.grupoAssessoresJid) && remoteJid === config.grupoAssessoresJid;
 
@@ -150,7 +152,7 @@ app.post('/webhook', async (req, res) => {
     // SILENCIO: sem resposta, sem chamada a IA, sem gravar nada.
     // A checagem vem antes de qualquer acesso ao banco de proposito: assim um
     // flood de numero desconhecido custa zero query e nao enche a tabela de dedup.
-    if (!ehGrupoAutorizado && !ehVereador) {
+    if (!ehGrupoAutorizado && !ehVereador && !ehAcompanhante) {
       console.log(
         `[webhook] ignorado (origem nao autorizada): ${mascarar(remoteJid)}`,
       );

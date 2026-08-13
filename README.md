@@ -41,7 +41,12 @@ A permissão é por **origem**, não por pessoa:
 
 - Dentro do grupo autorizado (`GRUPO_ASSESSORES_JID`): todos registram e consultam.
 - No privado do vereador (`VEREADOR_NUMERO`): consultas funcionam; registro não.
+- No privado de quem acompanha (`ADMIN_NUMEROS`): mesmas permissões do vereador.
 - Qualquer outra origem é descartada **em silêncio**, sem tocar no banco.
+
+`ADMIN_NUMEROS` é uma lista separada por vírgula. Esses números recebem também
+os informes automáticos (lembrete de 1h e bom-dia das 07h), para conferir o que
+está chegando no vereador e testar o que sobe sem depender do relato dele.
 
 O silêncio é deliberado: responder automaticamente a desconhecido é o caminho
 mais curto para o número ser denunciado como spam e banido.
@@ -171,10 +176,11 @@ isso, marca as migrations como aplicadas (baseline) e tenta de novo.
 
 ## Notificações automáticas
 
-- **1h antes** de cada compromisso: lembrete no grupo e no privado do vereador.
-  Compromisso sem horário não gera lembrete — ancorado à meia-noite, ele
-  dispararia às 23h da véspera.
-- **07:00** (fuso SP): a agenda da semana no privado do vereador.
+- **1h antes** de cada compromisso: lembrete no grupo, no privado do vereador e
+  de quem acompanha. Compromisso sem horário não gera lembrete — ancorado à
+  meia-noite, ele dispararia às 23h da véspera.
+- **07:00** (fuso SP): a agenda da semana no privado do vereador e de quem
+  acompanha.
 
 Para o privado funcionar, o número do vereador precisa ter conversa
 estabelecida com o número do bot. Sem isso o WhatsApp pode recusar a entrega,
